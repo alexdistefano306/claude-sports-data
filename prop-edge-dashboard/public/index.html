@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prop Edge — Player Data Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0f14;
+      color: #e2e8f0;
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #111318;
+      border-bottom: 1px solid #1e2330;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header .logo { font-size: 18px; font-weight: 700; color: #60a5fa; letter-spacing: -0.3px; }
+    header .subtitle { font-size: 12px; color: #64748b; }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+    /* Search */
+    .search-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .search-bar input {
+      flex: 1;
+      background: #111318;
+      border: 1px solid #1e2330;
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #e2e8f0;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-bar input:focus { border-color: #60a5fa; }
+    .search-bar button {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .search-bar button:hover { background: #1d4ed8; }
+
+    /* Autocomplete */
+    .autocomplete {
+      position: relative;
+    }
+    .autocomplete-list {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: #111318;
+      border: 1px solid #1e2330;
+      border-radius: 8px;
+      z-index: 100;
+      overflow: hidden;
+      display: none;
+    }
+    .autocomplete-list.visible { display: block; }
+    .autocomplete-item {
+      padding: 10px 16px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+    }
+    .autocomplete-item:hover { background: #1a1f2e; }
+    .autocomplete-item .team-badge {
+      font-size: 11px;
+      color: #60a5fa;
+      background: #1e3a5f;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* Tabs for sport */
+    .sport-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 20px;
+    }
+    .sport-tab {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid #1e2330;
+      background: transparent;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .sport-tab.active { background: #1e3a5f; border-color: #2563eb; color: #60a5fa; }
+
+    /* Player card */
+    .player-card {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .player-card.visible { display: flex; }
+
+    .card-header {
+      background: #111318;
+      border: 1px solid #1e2330;
+      border-radius: 12px;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .player-name { font-size: 24px; font-weight: 700; }
+    .player-meta { display: flex; gap: 12px; margin-top: 4px; }
+    .meta-tag {
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: #1a1f2e;
+      color: #94a3b8;
+    }
+    .meta-tag.position { background: #1e3a5f; color: #60a5fa; }
+    .meta-tag.team { background: #1a2e1a; color: #4ade80; }
+
+    .status-badge {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .status-active { background: #14532d; color: #4ade80; }
+    .status-out { background: #450a0a; color: #f87171; }
+    .status-gtd { background: #431407; color: #fb923c; }
+
+    /* Stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+    }
+
+    .stat-block {
+      background: #111318;
+      border: 1px solid #1e2330;
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+    .stat-block-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #64748b;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .stat-block-title .tier {
+      font-size: 9px;
+      padding: 2px 5px;
+      border-radius: 3px;
+      background: #1e3a5f;
+      color: #60a5fa;
+    }
+    .stat-block-title .tier.t2 { background: #3b2a1a; color: #fb923c; }
+    .stat-block-title .tier.t3 { background: #2a1a3b; color: #c084fc; }
+
+    /* Stat row */
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 0;
+      border-bottom: 1px solid #1a1f2e;
+      font-size: 14px;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { color: #94a3b8; }
+    .stat-value { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .stat-value.good { color: #4ade80; }
+    .stat-value.warn { color: #fb923c; }
+    .stat-value.neutral { color: #e2e8f0; }
+
+    /* Game log table */
+    .game-log-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .game-log-table th {
+      text-align: left;
+      padding: 6px 8px;
+      color: #64748b;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #1e2330;
+    }
+    .game-log-table td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #0d0f14;
+      color: #e2e8f0;
+    }
+    .game-log-table tr:last-child td { border-bottom: none; }
+    .game-log-table tr:hover td { background: #1a1f2e; }
+    .win { color: #4ade80; }
+    .loss { color: #f87171; }
+
+    /* Projection calculator */
+    .proj-calc {
+      background: #0f172a;
+      border: 1px solid #2563eb;
+      border-radius: 12px;
+      padding: 20px 24px;
+    }
+    .proj-calc h3 { color: #60a5fa; font-size: 14px; margin-bottom: 16px; }
+    .calc-inputs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .calc-input label { display: block; font-size: 11px; color: #64748b; margin-bottom: 4px; }
+    .calc-input input {
+      width: 100%;
+      background: #111318;
+      border: 1px solid #1e2330;
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: #e2e8f0;
+      font-size: 14px;
+    }
+    .calc-multipliers { margin-bottom: 16px; }
+    .calc-multipliers label { font-size: 11px; color: #64748b; display: block; margin-bottom: 6px; }
+    .mult-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .mult-tag {
+      padding: 5px 10px;
+      border-radius: 5px;
+      border: 1px solid #1e2330;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: #111318;
+      color: #94a3b8;
+    }
+    .mult-tag.active { border-color: #2563eb; background: #1e3a5f; color: #60a5fa; }
+    .mult-tag.negative.active { border-color: #dc2626; background: #450a0a; color: #f87171; }
+    .calc-result {
+      background: #111318;
+      border-radius: 8px;
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .calc-projection { font-size: 32px; font-weight: 800; color: #60a5fa; }
+    .calc-vs-line { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .vs-line-input { display: flex; align-items: center; gap: 8px; }
+    .vs-line-input label { font-size: 12px; color: #64748b; }
+    .vs-line-input input {
+      width: 70px;
+      background: #0d0f14;
+      border: 1px solid #1e2330;
+      border-radius: 5px;
+      padding: 6px 8px;
+      color: #e2e8f0;
+      font-size: 14px;
+      text-align: center;
+    }
+    .gap-display { font-size: 13px; font-weight: 600; }
+    .gap-bet { color: #4ade80; }
+    .gap-lean { color: #fb923c; }
+    .gap-no-bet { color: #94a3b8; }
+
+    .calc-btn {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+    .calc-btn:hover { background: #1d4ed8; }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #64748b;
+      display: none;
+    }
+    .loading.visible { display: block; }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid #1e2330;
+      border-top-color: #60a5fa;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error */
+    .error-msg {
+      background: #450a0a;
+      border: 1px solid #dc2626;
+      color: #f87171;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      display: none;
+    }
+    .error-msg.visible { display: block; }
+
+    /* Pace bar */
+    .pace-bar-wrap { margin-top: 6px; }
+    .pace-bar-bg {
+      background: #1e2330;
+      border-radius: 4px;
+      height: 6px;
+      overflow: hidden;
+    }
+    .pace-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #2563eb, #60a5fa);
+    }
+
+    /* Comparison columns */
+    .split-compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .split-col { text-align: center; }
+    .split-label { font-size: 11px; color: #64748b; margin-bottom: 6px; }
+    .split-stat { font-size: 22px; font-weight: 700; }
+
+    /* Footer note */
+    .footer-note {
+      text-align: center;
+      color: #1e2330;
+      font-size: 12px;
+      padding: 24px 0 0;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .calc-inputs { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">⚡ Prop Edge Dashboard</div>
+    <div class="subtitle">Player data for model projection building</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Sport tabs -->
+  <div class="sport-tabs">
+    <button class="sport-tab active" data-sport="nba">NBA</button>
+    <button class="sport-tab" data-sport="nhl" disabled title="Coming soon">NHL</button>
+    <button class="sport-tab" data-sport="mlb" disabled title="Coming soon">MLB</button>
+  </div>
+
+  <!-- Search -->
+  <div class="search-bar">
+    <div class="autocomplete" style="flex:1; position:relative;">
+      <input type="text" id="searchInput" placeholder="Search player name (e.g. Jalen Johnson)..." autocomplete="off" />
+      <div class="autocomplete-list" id="autocompleteList"></div>
+    </div>
+    <button onclick="searchPlayer()">Search</button>
+  </div>
+
+  <!-- Error -->
+  <div class="error-msg" id="errorMsg"></div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    Fetching player data...
+  </div>
+
+  <!-- Player Card -->
+  <div class="player-card" id="playerCard">
+
+    <!-- Header -->
+    <div class="card-header">
+      <div>
+        <div class="player-name" id="pName">—</div>
+        <div class="player-meta">
+          <span class="meta-tag team" id="pTeam">—</span>
+          <span class="meta-tag position" id="pPos">—</span>
+          <span class="meta-tag" id="pJersey">—</span>
+        </div>
+      </div>
+      <span class="status-badge status-active" id="pStatus">Active</span>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <!-- Projection Calculator -->
+    <div class="proj-calc">
+      <h3>⚡ Model Projection Calculator</h3>
+      <div class="calc-inputs">
+        <div class="calc-input">
+          <label>Career Avg (85.5%)</label>
+          <input type="number" id="calcCareer" step="0.1" placeholder="0.0" />
+        </div>
+        <div class="calc-input">
+          <label>Season Avg (14.2%)</label>
+          <input type="number" id="calcSeason" step="0.1" placeholder="0.0" />
+        </div>
+        <div class="calc-input">
+          <label>Last Game (0.3%)</label>
+          <input type="number" id="calcLastGame" step="0.1" placeholder="0.0" />
+        </div>
+      </div>
+      <div class="calc-multipliers">
+        <label>Situational Multipliers (click to toggle):</label>
+        <div class="mult-tags" id="multTags"></div>
+      </div>
+      <button class="calc-btn" onclick="runCalculator()">Calculate Projection</button>
+      <div class="calc-result" id="calcResult" style="margin-top:14px; display:none;">
+        <div>
+          <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Our Projection</div>
+          <div class="calc-projection" id="calcProjection">—</div>
+          <div style="font-size:12px;color:#64748b;margin-top:4px;" id="calcFormula"></div>
+        </div>
+        <div class="calc-vs-line">
+          <div class="vs-line-input">
+            <label>Book's Line:</label>
+            <input type="number" id="bookLine" step="0.5" placeholder="0.0" oninput="updateGap()" />
+          </div>
+          <div class="gap-display" id="gapDisplay">Enter line to see gap</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="footer-note">Prop Edge Model v3.1 | Data: NBA Stats API | For model projection use only</div>
+
+<script>
+  const API = '';
+  let currentPlayer = null;
+  let currentProjection = null;
+
+  const MULTIPLIERS = [
+    { label: 'Key teammate OUT (+10%)', pct: 10, negative: false },
+    { label: 'B2B 2nd night (−10%)', pct: -10, negative: true },
+    { label: 'B2B + 35min last night (−15%)', pct: -15, negative: true },
+    { label: 'Opp bottom-10 pos defense (+8%)', pct: 8, negative: false },
+    { label: 'Opp top-5 pos defense (−12%)', pct: -12, negative: true },
+    { label: 'Fast pace game (+5%)', pct: 5, negative: false },
+    { label: 'Slow pace game (−5%)', pct: -5, negative: true },
+    { label: 'Blowout risk − winning team (−20%)', pct: -20, negative: true },
+    { label: 'Expected blowout loss (+5%)', pct: 5, negative: false },
+    { label: 'Revenge game − former team (+15%)', pct: 15, negative: false },
+    { label: 'Post-injury return (−5%)', pct: -5, negative: true },
+    { label: 'Home game (+3%)', pct: 3, negative: false },
+    { label: 'Away game (−3%)', pct: -3, negative: true },
+    { label: 'High-foul referee (+3%)', pct: 3, negative: false },
+  ];
+
+  // Render multiplier buttons
+  const multContainer = document.getElementById('multTags');
+  const activeMultipliers = new Set();
+  MULTIPLIERS.forEach((m, i) => {
+    const btn = document.createElement('button');
+    btn.className = `mult-tag${m.negative ? ' negative' : ''}`;
+    btn.textContent = m.label;
+    btn.dataset.index = i;
+    btn.onclick = () => {
+      if (activeMultipliers.has(i)) {
+        activeMultipliers.delete(i);
+        btn.classList.remove('active');
+      } else {
+        activeMultipliers.add(i);
+        btn.classList.add('active');
+      }
+    };
+    multContainer.appendChild(btn);
+  });
+
+  // Search autocomplete
+  let searchTimeout = null;
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    const val = e.target.value.trim();
+    if (val.length < 2) {
+      hideAutocomplete();
+      return;
+    }
+    searchTimeout = setTimeout(() => fetchAutocomplete(val), 300);
+  });
+
+  document.getElementById('searchInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') searchPlayer();
+  });
+
+  async function fetchAutocomplete(name) {
+    try {
+      const res = await fetch(`${API}/api/nba/search/${encodeURIComponent(name)}`);
+      const results = await res.json();
+      renderAutocomplete(results);
+    } catch (e) {
+      hideAutocomplete();
+    }
+  }
+
+  function renderAutocomplete(results) {
+    const list = document.getElementById('autocompleteList');
+    list.innerHTML = '';
+    if (!results.length) { hideAutocomplete(); return; }
+    results.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'autocomplete-item';
+      item.innerHTML = `<span>${p.name}</span><span class="team-badge">${p.team}</span>`;
+      item.onclick = () => {
+        document.getElementById('searchInput').value = p.name;
+        hideAutocomplete();
+        loadPlayer(p.id);
+      };
+      list.appendChild(item);
+    });
+    list.classList.add('visible');
+  }
+
+  function hideAutocomplete() {
+    document.getElementById('autocompleteList').classList.remove('visible');
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.autocomplete')) hideAutocomplete();
+  });
+
+  async function searchPlayer() {
+    const name = document.getElementById('searchInput').value.trim();
+    if (!name) return;
+    try {
+      showLoading();
+      const res = await fetch(`${API}/api/nba/search/${encodeURIComponent(name)}`);
+      const results = await res.json();
+      if (results.length === 0) { showError('No player found. Try a different name.'); return; }
+      loadPlayer(results[0].id);
+    } catch (e) {
+      showError('Search failed: ' + e.message);
+    }
+  }
+
+  async function loadPlayer(id) {
+    showLoading();
+    try {
+      const res = await fetch(`${API}/api/nba/player/${id}`);
+      if (!res.ok) throw new Error('Failed to load player data');
+      const player = await res.json();
+      currentPlayer = player;
+      renderPlayerCard(player);
+    } catch (e) {
+      showError('Could not load player: ' + e.message);
+    }
+  }
+
+  function renderPlayerCard(p) {
+    hideLoading();
+    hideError();
+
+    document.getElementById('pName').textContent = p.name;
+    document.getElementById('pTeam').textContent = p.team;
+    document.getElementById('pPos').textContent = p.position;
+    document.getElementById('pJersey').textContent = `#${p.jerseyNum}`;
+    document.getElementById('pStatus').textContent = p.status === 'Active' ? 'Active' : 'Inactive';
+
+    // Pre-fill calculator
+    document.getElementById('calcCareer').value = p.career.pts || '';
+    document.getElementById('calcSeason').value = p.season.pts || '';
+    document.getElementById('calcLastGame').value = p.last5.games[0]?.pts || '';
+
+    const grid = document.getElementById('statsGrid');
+    grid.innerHTML = '';
+
+    // ── Block 1: Season Averages (TIER 1) ─────────────────────────────────
+    grid.appendChild(makeBlock('Season Averages', '1', [
+      { label: 'Points', value: p.season.pts, type: 'neutral' },
+      { label: 'Rebounds', value: p.season.reb, type: 'neutral' },
+      { label: 'Assists', value: p.season.ast, type: 'neutral' },
+      { label: 'Minutes', value: p.season.min, type: 'neutral' },
+      { label: 'Usage %', value: p.season.usgPct ? p.season.usgPct + '%' : '—', type: 'neutral' },
+      { label: 'TS %', value: p.season.tsPct ? p.season.tsPct + '%' : '—', type: p.season.tsPct >= 58 ? 'good' : 'warn' },
+      { label: 'Games Played', value: p.season.gp, type: 'neutral' },
+      { label: 'Blocks', value: p.season.blk, type: 'neutral' },
+      { label: 'Steals', value: p.season.stl, type: 'neutral' },
+      { label: 'Turnovers', value: p.season.tov, type: 'warn' },
+    ]));
+
+    // ── Block 2: Career Averages (TIER 1 — 85.5% weight) ──────────────────
+    grid.appendChild(makeBlock('Career Averages (85.5% weight)', '1', [
+      { label: 'Points', value: p.career.pts, type: 'neutral' },
+      { label: 'Rebounds', value: p.career.reb, type: 'neutral' },
+      { label: 'Assists', value: p.career.ast, type: 'neutral' },
+      { label: 'Minutes', value: p.career.min, type: 'neutral' },
+      { label: 'Career Games', value: p.career.gp, type: 'neutral' },
+    ]));
+
+    // ── Block 3: Home / Away Splits (TIER 1) ──────────────────────────────
+    const homeAwayBlock = document.createElement('div');
+    homeAwayBlock.className = 'stat-block';
+    homeAwayBlock.innerHTML = `
+      <div class="stat-block-title">Home / Away Splits <span class="tier">TIER 1</span></div>
+      <div class="split-compare">
+        <div class="split-col">
+          <div class="split-label">🏠 Home (${p.home.gp || '—'} G)</div>
+          <div class="split-stat" style="color:#4ade80">${p.home.pts || '—'}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:4px">${p.home.reb || '—'} reb / ${p.home.ast || '—'} ast</div>
+          <div style="font-size:11px;color:#64748b">${p.home.min || '—'} min</div>
+        </div>
+        <div class="split-col">
+          <div class="split-label">✈️ Away (${p.away.gp || '—'} G)</div>
+          <div class="split-stat" style="color:#60a5fa">${p.away.pts || '—'}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:4px">${p.away.reb || '—'} reb / ${p.away.ast || '—'} ast</div>
+          <div style="font-size:11px;color:#64748b">${p.away.min || '—'} min</div>
+        </div>
+      </div>
+    `;
+    grid.appendChild(homeAwayBlock);
+
+    // ── Block 4: B2B Splits (TIER 2) ──────────────────────────────────────
+    const b2bBlock = document.createElement('div');
+    b2bBlock.className = 'stat-block';
+    const b2bDiff = p.b2b.pts && p.season.pts ? (p.b2b.pts - p.season.pts).toFixed(1) : null;
+    const b2bColor = b2bDiff < 0 ? '#f87171' : '#4ade80';
+    b2bBlock.innerHTML = `
+      <div class="stat-block-title">Back-to-Back Splits <span class="tier t2">TIER 2</span></div>
+      <div class="split-compare">
+        <div class="split-col">
+          <div class="split-label">😤 B2B (${p.b2b.gp || '—'} G)</div>
+          <div class="split-stat" style="color:${b2bColor}">${p.b2b.pts || '—'}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:4px">${p.b2b.reb || '—'} reb / ${p.b2b.ast || '—'} ast</div>
+          <div style="font-size:11px;color:#64748b">${p.b2b.min || '—'} min</div>
+          ${b2bDiff ? `<div style="font-size:11px;color:${b2bColor};margin-top:2px">${b2bDiff > 0 ? '+' : ''}${b2bDiff} vs season</div>` : ''}
+        </div>
+        <div class="split-col">
+          <div class="split-label">😌 1 Day Rest (${p.oneRest.gp || '—'} G)</div>
+          <div class="split-stat" style="color:#e2e8f0">${p.oneRest.pts || '—'}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:4px">${p.oneRest.reb || '—'} reb / ${p.oneRest.ast || '—'} ast</div>
+          <div style="font-size:11px;color:#64748b">${p.oneRest.min || '—'} min</div>
+        </div>
+      </div>
+    `;
+    grid.appendChild(b2bBlock);
+
+    // ── Block 5: Last 5 Games Log (TIER 2 — Structural flag only) ─────────
+    const logBlock = document.createElement('div');
+    logBlock.className = 'stat-block';
+    logBlock.style.gridColumn = 'span 2';
+    const logRows = p.last5.games.map(g => `
+      <tr>
+        <td>${g.date}</td>
+        <td>${g.matchup}</td>
+        <td><b>${g.pts}</b></td>
+        <td>${g.reb}</td>
+        <td>${g.ast}</td>
+        <td>${g.min}</td>
+        <td>${g.fgm}/${g.fga}</td>
+        <td class="${g.result === 'W' ? 'win' : 'loss'}">${g.result}</td>
+      </tr>`).join('');
+    logBlock.innerHTML = `
+      <div class="stat-block-title">Last 5 Games <span class="tier t2">TIER 2 — Flag use only, not weighted</span></div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:10px">
+        Avg: <b>${p.last5.pts}</b> pts / <b>${p.last5.reb}</b> reb / <b>${p.last5.ast}</b> ast / <b>${p.last5.min}</b> min
+        &nbsp;|&nbsp; L10: <b>${p.last10.pts}</b> pts / <b>${p.last10.reb}</b> reb / <b>${p.last10.ast}</b> ast
+      </div>
+      <table class="game-log-table">
+        <thead><tr><th>Date</th><th>Matchup</th><th>PTS</th><th>REB</th><th>AST</th><th>MIN</th><th>FG</th><th>W/L</th></tr></thead>
+        <tbody>${logRows}</tbody>
+      </table>
+    `;
+    grid.appendChild(logBlock);
+
+    // ── Block 6: Minutes trend ─────────────────────────────────────────────
+    const maxMin = Math.max(...p.minutesTrend.map(g => parseFloat(g.min) || 0), 40);
+    const minRows = p.minutesTrend.map(g => {
+      const pct = ((parseFloat(g.min) || 0) / maxMin * 100).toFixed(0);
+      return `
+        <div class="stat-row">
+          <span class="stat-label">${g.date} vs ${g.opp?.split(' ').pop()}</span>
+          <div style="display:flex;align-items:center;gap:8px;width:60%">
+            <div class="pace-bar-bg" style="flex:1">
+              <div class="pace-bar-fill" style="width:${pct}%"></div>
+            </div>
+            <span class="stat-value neutral" style="min-width:35px">${g.min}</span>
+          </div>
+        </div>`;
+    }).join('');
+    const minBlock = document.createElement('div');
+    minBlock.className = 'stat-block';
+    minBlock.innerHTML = `
+      <div class="stat-block-title">Minutes Trend (Last 5) <span class="tier">TIER 1</span></div>
+      ${minRows}
+    `;
+    grid.appendChild(minBlock);
+
+    document.getElementById('playerCard').classList.add('visible');
+  }
+
+  // Build a stat block
+  function makeBlock(title, tier, rows) {
+    const block = document.createElement('div');
+    block.className = 'stat-block';
+    const tierClass = tier === '1' ? '' : tier === '2' ? ' t2' : ' t3';
+    block.innerHTML = `<div class="stat-block-title">${title} <span class="tier${tierClass}">TIER ${tier}</span></div>`;
+    rows.forEach(r => {
+      const div = document.createElement('div');
+      div.className = 'stat-row';
+      div.innerHTML = `<span class="stat-label">${r.label}</span><span class="stat-value ${r.type}">${r.value ?? '—'}</span>`;
+      block.appendChild(div);
+    });
+    return block;
+  }
+
+  // ── Projection Calculator ─────────────────────────────────────────────────
+  async function runCalculator() {
+    const career = parseFloat(document.getElementById('calcCareer').value);
+    const season = parseFloat(document.getElementById('calcSeason').value);
+    const lastGame = parseFloat(document.getElementById('calcLastGame').value) || season;
+
+    if (isNaN(career) || isNaN(season)) {
+      alert('Enter at least Career Avg and Season Avg');
+      return;
+    }
+
+    const mults = Array.from(activeMultipliers).map(i => ({
+      label: MULTIPLIERS[i].label,
+      pct: MULTIPLIERS[i].pct,
+    }));
+
+    try {
+      const res = await fetch(`${API}/api/calculate-projection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ careerAvg: career, seasonAvg: season, lastGameStat: lastGame, situationalMultipliers: mults }),
+      });
+      const data = await res.json();
+      currentProjection = parseFloat(data.finalProjection);
+
+      document.getElementById('calcProjection').textContent = data.finalProjection;
+      document.getElementById('calcFormula').textContent = data.formula;
+      document.getElementById('calcResult').style.display = 'flex';
+
+      updateGap();
+    } catch (e) {
+      alert('Calculation failed: ' + e.message);
+    }
+  }
+
+  function updateGap() {
+    if (!currentProjection) return;
+    const line = parseFloat(document.getElementById('bookLine').value);
+    if (isNaN(line)) { document.getElementById('gapDisplay').textContent = 'Enter line to see gap'; return; }
+
+    const gap = Math.abs((currentProjection - line) / line * 100);
+    const direction = currentProjection > line ? '📈 OVER' : '📉 UNDER';
+    let status, cls;
+
+    if (gap >= 20) { status = 'STRONG BET'; cls = 'gap-bet'; }
+    else if (gap >= 10) { status = 'BET'; cls = 'gap-bet'; }
+    else if (gap >= 5) { status = 'LEAN / NO BET'; cls = 'gap-lean'; }
+    else { status = 'NO BET (coin flip)'; cls = 'gap-no-bet'; }
+
+    document.getElementById('gapDisplay').innerHTML =
+      `<span class="${cls}">${direction} &nbsp;|&nbsp; ${gap.toFixed(1)}% gap &nbsp;|&nbsp; ${status}</span>`;
+  }
+
+  // ── Utilities ─────────────────────────────────────────────────────────────
+  function showLoading() {
+    document.getElementById('loading').classList.add('visible');
+    document.getElementById('playerCard').classList.remove('visible');
+    document.getElementById('errorMsg').classList.remove('visible');
+  }
+  function hideLoading() {
+    document.getElementById('loading').classList.remove('visible');
+  }
+  function showError(msg) {
+    hideLoading();
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.add('visible');
+  }
+  function hideError() {
+    document.getElementById('errorMsg').classList.remove('visible');
+  }
+</script>
+
+</body>
+</html>
