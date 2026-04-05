@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getSamplePickContext } from '../../../../lib/data';
+import { getSamplePickContext } from '../../../../../lib/data';
 
 export default function handler(
   req: NextApiRequest,
