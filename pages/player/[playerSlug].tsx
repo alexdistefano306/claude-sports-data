@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 
 type PickContext = {
   player: string;
+  playerId: number | string;
   sport: 'NBA';
   market: string;
   line: number | null;
@@ -21,6 +22,7 @@ type PickContext = {
   };
   source: string;
   notes?: string[];
+  errors?: string[];
 };
 
 function formatStat(value: number | null) {
@@ -48,8 +50,9 @@ export default function PlayerPage() {
       setError('');
       try {
         const response = await fetch(`/api/pick-context/nba/${playerSlug}/points`);
-        if (!response.ok) throw new Error('Unable to load player context.');
-        setContext(await response.json());
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error ?? 'Unable to load player context.');
+        setContext(payload);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unable to load player context.');
       }
@@ -84,6 +87,12 @@ export default function PlayerPage() {
         <section style={{ marginTop: 28 }}>
           <h2>Notes</h2>
           <ul>{context.notes.map((note) => <li key={note}>{note}</li>)}</ul>
+        </section>
+      ) : null}
+      {context.errors?.length ? (
+        <section style={{ marginTop: 28, color: '#b00020' }}>
+          <h2>Partial Data Warnings</h2>
+          <ul>{context.errors.map((item) => <li key={item}>{item}</li>)}</ul>
         </section>
       ) : null}
     </div>

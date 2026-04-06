@@ -1,15 +1,24 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getLivePickContext } from '../../../../../lib/nba';
+import { getPickContext, type PickContextResponse } from '../../../../../lib/nba-service';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<PickContextResponse | { error: string }>
+) {
   const { sport, playerSlug, market } = req.query;
-  const parsedLine = typeof req.query.line === 'string' ? Number.parseFloat(req.query.line) : null;
 
-  if (sport !== 'nba' || typeof playerSlug !== 'string' || typeof market !== 'string') {
-    res.status(400).json({ error: 'Use /api/pick-context/nba/:playerSlug/:market' });
+  if (typeof sport !== 'string' || typeof playerSlug !== 'string' || typeof market !== 'string') {
+    res.status(400).json({ error: 'Invalid route parameters.' });
     return;
   }
 
-  const context = await getLivePickContext(playerSlug, market, Number.isFinite(parsedLine) ? parsedLine : null);
-  res.status(200).json(context);
+  try {
+    const line = typeof req.query.line === 'string' ? req.query.line : undefined;
+    const payload = await getPickContext({ sport, playerSlug, market, line });
+    res.status(200).json(payload);
+  } catch (error) {
+    res.status(502).json({
+      error: error instanceof Error ? error.message : 'Unable to load pick context from the NBA service.'
+    });
+  }
 }

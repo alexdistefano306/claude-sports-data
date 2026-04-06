@@ -3,17 +3,20 @@ import React from 'react';
 export default function Home() {
   return (
     <div style={{ padding: '2rem', fontFamily: 'Arial, sans-serif', maxWidth: 900, margin: '0 auto' }}>
-      <h1>Prop Edge Live NBA MVP</h1>
+      <h1>Prop Edge NBA API Stack</h1>
       <p>
-        This version replaces the fake games and fake player stats with live server-side calls. It tries NBA stats first and then BALLDONTLIE if the NBA request fails.
+        This repo now contains two pieces: a Next.js dashboard at the root and a Python <code>nba_api</code> service in
+        <code> /nba-service</code>. The dashboard proxies all NBA data through your own service instead of calling the NBA endpoints directly from Node.
       </p>
       <ul>
         <li><a href="/dashboard">Open dashboard</a></li>
         <li><a href="/api/health">API health</a></li>
-        <li><a href="/api/slate">Live slate JSON</a></li>
-        <li><a href="/api/players?limit=20">Live players JSON</a></li>
+        <li><a href="/api/slate">Slate JSON</a></li>
+        <li><a href="/api/players?limit=20">Players JSON</a></li>
       </ul>
-      <p>Add <code>BALLDONTLIE_API_KEY</code> in Render if you want fallback support.</p>
+      <p>
+        Set <code>NBA_SERVICE_URL</code> on the web service after you deploy the Python service.
+      </p>
     </div>
   );
 }
