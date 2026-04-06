@@ -160,7 +160,7 @@ def extract_player_info(player_id: int, errors: list[str]) -> tuple[str, str]:
         payload = commonplayerinfo.CommonPlayerInfo(
             player_id=player_id,
             headers=NBA_HEADERS,
-            timeout=30,
+            timeout=12,
         ).get_dict()
         result_map = result_sets_to_map(payload)
         rows = result_map.get("CommonPlayerInfo", [])
