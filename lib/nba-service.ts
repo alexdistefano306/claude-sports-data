@@ -95,7 +95,7 @@ function getBaseUrl(): string {
   return baseUrl.replace(/\/$/, '');
 }
 
-async function fetchWithTimeout(url: string, timeoutMs = 15000): Promise<Response> {
+async function fetchWithTimeout(url: string, timeoutMs = 60000): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
