@@ -184,7 +184,11 @@ export default function DashboardPage() {
     }
 
     load();
-  }, []);
+  }, [selectedGameId]);
+
+  const selectedGame = useMemo(() => games.find((game) => game.id === selectedGameId) ?? null, [games, selectedGameId]);
+
+  const selectedGame = useMemo(() => games.find((game) => game.id === selectedGameId) ?? null, [games, selectedGameId]);
 
   const selectedGame = useMemo(() => games.find((game) => game.id === selectedGameId) ?? null, [games, selectedGameId]);
 
