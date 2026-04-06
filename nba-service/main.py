@@ -340,32 +340,46 @@ def pick_context(
 ) -> dict[str, Any]:
     errors: list[str] = []
     notes: list[str] = []
+
     player = find_player(playerSlug)
     if not player:
-        raise HTTPException(status_code=404, detail={"error": f"Player '{playerSlug}' was not found in nba_api active players."})
+        raise HTTPException(
+            status_code=404,
+            detail={"error": f"Player '{playerSlug}' was not found in nba_api active players."},
+        )
 
     player_id = int(player["id"])
-    team, position = extract_player_info(player_id, errors)
     season = season_string()
-    season_avg, last_10_avg, home_split, away_split, minutes_last_5 = extract_game_log_stats(player_id, market, season, errors)
-    career_avg = extract_career_average(player_id, market, errors)
+
+    # Required stats source
+    season_avg, last_10_avg, home_split, away_split, minutes_last_5 = extract_game_log_stats(
+        player_id, market, season, errors
+    )
+
+    # Optional enrichments
+    team, position = "", ""
+    career_avg = None
+
+    try:
+        team, position = extract_player_info(player_id, errors)
+    except Exception as exc:
+        errors.append(f"Optional CommonPlayerInfo failed: {exc}")
+
+    try:
+        career_avg = extract_career_average(player_id, market, errors)
+    except Exception as exc:
+        errors.append(f"Optional PlayerCareerStats failed: {exc}")
 
     opponent: str | None = None
     rest_days: int | None = None
     try:
         live_games = parse_live_games(get_live_scoreboard())
         opponent, rest_days = find_opponent(team, live_games)
-    except Exception as exc:  # noqa: BLE001
-        errors.append(f"Live scoreboard lookup for opponent failed: {exc}")
+    except Exception as exc:
+        errors.append(f"Live scoreboard lookup failed: {exc}")
 
-    if team == "":
-        notes.append("Team could not be populated from CommonPlayerInfo.")
-    if position == "":
-        notes.append("Position could not be populated from CommonPlayerInfo.")
     if season_avg is None:
-        notes.append("Season average was unavailable from PlayerGameLog.")
-    if career_avg is None:
-        notes.append("Career average was unavailable from PlayerCareerStats.")
+        notes.append("PlayerGameLog did not return usable stat rows for this player/season/market.")
 
     return {
         "player": player["full_name"],
