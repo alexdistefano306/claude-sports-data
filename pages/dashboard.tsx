@@ -66,7 +66,7 @@ type InjuryRow = {
   updatedAt: string;
 };
 
-type InjuriesResponse = {
+type DashboardInjuriesResponse = {
   injuries: InjuryRow[];
 };
 
@@ -80,35 +80,6 @@ const TEAM_META: Record<string, { division: string; tz: number }> = {
   POR: { division: 'Northwest', tz: -8 }, SAC: { division: 'Pacific', tz: -8 }, SAS: { division: 'Southwest', tz: -6 }, TOR: { division: 'Atlantic', tz: -5 },
   UTA: { division: 'Northwest', tz: -7 }, WAS: { division: 'Southeast', tz: -5 }
 };
-
-type InjuriesResponse = {
-  injuries: InjuryRow[];
-  source: string;
-  errors: string[];
-  notes: string[];
-  updatedAt: string;
-};
-
-function toEt(value: string): string {
-  try {
-    return new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
-      hour: 'numeric',
-      minute: '2-digit'
-    }).format(new Date(value));
-  } catch {
-    return 'Unknown';
-  }
-}
-
-function formatNumber(value: number | null, digits = 1): string {
-  if (typeof value !== 'number' || Number.isNaN(value)) return 'N/A';
-  return value.toFixed(digits);
-}
-
-function copyText(text: string) {
-  return navigator.clipboard.writeText(text);
-}
 
 const panelStyle: React.CSSProperties = {
   border: '1px solid #dcdcdc',
@@ -201,7 +172,7 @@ export default function DashboardPage() {
 
         const slateJson = (await slateRes.json()) as SlateResponse;
         const playersJson = (await playersRes.json()) as PlayersResponse;
-        const injuriesJson = (await injuriesRes.json()) as InjuriesResponse;
+        const injuriesJson = (await injuriesRes.json()) as DashboardInjuriesResponse;
 
         setGames(slateJson.games ?? []);
         setPlayers(playersJson.players ?? []);
@@ -214,6 +185,8 @@ export default function DashboardPage() {
 
     load();
   }, [selectedGameId]);
+
+  const selectedGame = useMemo(() => games.find((game) => game.id === selectedGameId) ?? null, [games, selectedGameId]);
 
   const selectedGame = useMemo(() => games.find((game) => game.id === selectedGameId) ?? null, [games, selectedGameId]);
 
