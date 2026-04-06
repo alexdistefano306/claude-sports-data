@@ -192,6 +192,8 @@ export default function DashboardPage() {
 
   const selectedGame = useMemo(() => games.find((game) => game.id === selectedGameId) ?? null, [games, selectedGameId]);
 
+  const selectedGame = useMemo(() => games.find((game) => game.id === selectedGameId) ?? null, [games, selectedGameId]);
+
   const filteredPlayers = useMemo(() => {
     const query = search.trim().toLowerCase();
     return players.filter((player) => `${player.name} ${player.team} ${player.position}`.toLowerCase().includes(query));
