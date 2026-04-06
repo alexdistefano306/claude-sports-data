@@ -1,3 +1,9 @@
+import {
+  getLivePickContext as getLocalPickContext,
+  getLivePlayers as getLocalPlayers,
+  getLiveSlate as getLocalSlate
+} from './nba';
+
 export interface ServiceErrorResponse {
   error: string;
   errors?: string[];
@@ -89,9 +95,7 @@ export interface HealthResponse {
 
 function getBaseUrl(): string {
   const baseUrl = process.env.NBA_SERVICE_URL;
-  if (!baseUrl) {
-    throw new Error('NBA_SERVICE_URL is not configured on the web service.');
-  }
+  if (!baseUrl) return '';
   return baseUrl.replace(/\/$/, '');
 }
 
@@ -112,7 +116,11 @@ async function fetchWithTimeout(url: string, timeoutMs = 60000): Promise<Respons
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
-  const response = await fetchWithTimeout(`${getBaseUrl()}${path}`);
+  const baseUrl = getBaseUrl();
+  if (!baseUrl) {
+    throw new Error('NBA_SERVICE_URL is not configured.');
+  }
+  const response = await fetchWithTimeout(`${baseUrl}${path}`);
   if (!response.ok) {
     let payload: ServiceErrorResponse | null = null;
     try {
@@ -126,19 +134,73 @@ async function fetchJson<T>(path: string): Promise<T> {
 }
 
 export async function getUpstreamHealth(): Promise<unknown> {
+  if (!getBaseUrl()) {
+    return {
+      status: 'ok',
+      mode: 'single-service-fallback',
+      message: 'NBA_SERVICE_URL is not set; using in-app NBA provider.'
+    };
+  }
   return fetchJson('/health');
 }
 
 export async function getLiveSlate(date?: string): Promise<SlateResponse> {
   const query = date ? `?date=${encodeURIComponent(date)}` : '';
-  return fetchJson<SlateResponse>(`/nba/slate${query}`);
+  if (getBaseUrl()) {
+    return fetchJson<SlateResponse>(`/nba/slate${query}`);
+  }
+
+  const requestedDate = date ?? new Date().toISOString().slice(0, 10);
+  const games = await getLocalSlate(requestedDate);
+  return {
+    sport: 'NBA',
+    requestedDate,
+    actualDate: requestedDate,
+    games: games.map((game) => ({
+      id: game.id,
+      sport: 'NBA',
+      homeTeam: game.homeTeam,
+      awayTeam: game.awayTeam,
+      homeTeamId: game.homeTeamId,
+      awayTeamId: game.awayTeamId,
+      startTime: game.startTime,
+      status: game.status,
+      source: `local-${game.source}`
+    })),
+    source: 'local-nba-provider',
+    errors: [],
+    notes: ['Running without NBA_SERVICE_URL; using in-app NBA + balldontlie fallbacks.'],
+    updatedAt: new Date().toISOString()
+  };
 }
 
 export async function getLivePlayers(limit = 100, search?: string): Promise<PlayersResponse> {
-  const params = new URLSearchParams();
-  params.set('limit', String(limit));
-  if (search) params.set('q', search);
-  return fetchJson<PlayersResponse>(`/nba/players?${params.toString()}`);
+  if (getBaseUrl()) {
+    const params = new URLSearchParams();
+    params.set('limit', String(limit));
+    if (search) params.set('q', search);
+    return fetchJson<PlayersResponse>(`/nba/players?${params.toString()}`);
+  }
+
+  const allPlayers = await getLocalPlayers(limit);
+  const filtered = search
+    ? allPlayers.filter((player) => `${player.name} ${player.team} ${player.position}`.toLowerCase().includes(search.toLowerCase()))
+    : allPlayers;
+
+  return {
+    players: filtered.slice(0, limit).map((player) => ({
+      playerId: player.playerId,
+      slug: player.slug,
+      name: player.name,
+      team: player.team,
+      position: player.position,
+      source: `local-${player.source}`
+    })),
+    source: 'local-nba-provider',
+    errors: [],
+    notes: ['Running without NBA_SERVICE_URL; using in-app NBA + balldontlie fallbacks.'],
+    updatedAt: new Date().toISOString()
+  };
 }
 
 export async function getPickContext(input: {
@@ -147,6 +209,18 @@ export async function getPickContext(input: {
   market: string;
   line?: string;
 }): Promise<PickContextResponse> {
+  if (!getBaseUrl()) {
+    const parsedLine = input.line != null ? Number(input.line) : null;
+    const normalizedLine = parsedLine != null && Number.isFinite(parsedLine) ? parsedLine : null;
+    const payload = await getLocalPickContext(input.playerSlug, input.market, normalizedLine);
+    return {
+      ...payload,
+      playerId: input.playerSlug,
+      errors: [],
+      notes: payload.notes ?? ['Running without NBA_SERVICE_URL; using in-app NBA + balldontlie fallbacks.']
+    };
+  }
+
   const params = new URLSearchParams();
   params.set('playerSlug', input.playerSlug);
   params.set('market', input.market);
