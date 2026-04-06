@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
+type Sport = 'NBA' | 'MLB' | 'NHL';
+
 type Game = {
   id: string;
   sport: 'NBA';
@@ -51,17 +53,16 @@ type PickContext = {
 type SlateResponse = {
   games: Game[];
   source: string;
-  requestedDate: string;
-  actualDate: string;
-  errors: string[];
   notes: string[];
+  errors: string[];
+};
+
+type SlateResponse = {
+  games: Game[];
 };
 
 type PlayersResponse = {
   players: Player[];
-  source: string;
-  errors: string[];
-  notes: string[];
 };
 
 type InjuryRow = {
@@ -108,7 +109,66 @@ const panelStyle: React.CSSProperties = {
   padding: 14
 };
 
+function toEtTime(value: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      hour: 'numeric',
+      minute: '2-digit'
+    }).format(new Date(value));
+  } catch {
+    return 'Unknown';
+  }
+}
+
+function formatNumber(value: number | null, digits = 1): string {
+  if (typeof value !== 'number' || Number.isNaN(value)) return 'N/A';
+  return value.toFixed(digits);
+}
+
+function getSeasonSegment(date = new Date()): string {
+  const month = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: '2-digit' }).format(date));
+  if (month <= 11 && month >= 10) return 'Early';
+  if (month >= 3 && month <= 4) return 'Playoff Push';
+  return 'Mid';
+}
+
+function computeProjection(context: PickContext): number | null {
+  const lastGameProxy = context.last_10_avg;
+  if (context.career_avg == null || context.season_avg == null || lastGameProxy == null) return null;
+  return (context.career_avg * 0.855) + (context.season_avg * 0.142) + (lastGameProxy * 0.003);
+}
+
+function computeGap(projection: number | null, line: number | null): number | null {
+  if (projection == null || line == null || line === 0) return null;
+  return (Math.abs(projection - line) / line) * 100;
+}
+
+function getBetStatus(gap: number | null, market: string): string {
+  if (gap == null) return 'NO BET';
+  const isComposite = market.toLowerCase().includes('pra');
+  const betThreshold = isComposite ? 20 : 10;
+  if (gap >= 20) return 'STRONG BET';
+  if (gap >= betThreshold) return 'BET';
+  return 'NO BET';
+}
+
+function getDirection(projection: number | null, line: number | null): 'OVER' | 'UNDER' {
+  if (projection == null || line == null) return 'UNDER';
+  return projection >= line ? 'OVER' : 'UNDER';
+}
+
+function getConfidence(gap: number | null): number {
+  if (gap == null) return 51;
+  if (gap >= 20) return 70;
+  if (gap >= 15) return 65;
+  if (gap >= 10) return 60;
+  if (gap >= 5) return 55;
+  return 52;
+}
+
 export default function DashboardPage() {
+  const [sport, setSport] = useState<Sport>('NBA');
   const [games, setGames] = useState<Game[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [injuries, setInjuries] = useState<InjuryRow[]>([]);
@@ -153,9 +213,10 @@ export default function DashboardPage() {
 
   const selectedGame = useMemo(() => games.find((game) => game.id === selectedGameId) ?? null, [games, selectedGameId]);
 
+  const selectedGame = useMemo(() => games.find((game) => game.id === selectedGameId) ?? null, [games, selectedGameId]);
+
   const filteredPlayers = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return players;
     return players.filter((player) => `${player.name} ${player.team} ${player.position}`.toLowerCase().includes(query));
   }, [players, search]);
 
